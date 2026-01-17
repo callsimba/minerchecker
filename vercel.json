@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/profitability",
-      "schedule": "0 */6 * * *",
+      "schedule": "0 0 * * *",
       "headers": {
         "x-cron-secret": "@cron_secret"
       }
