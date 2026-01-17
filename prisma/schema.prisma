@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MachineStatus {
+  AVAILABLE
+  COMING_SOON
+  DISCONTINUED
+}
+
+enum TrustLevel {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum FeatureFlagScope {
+  GLOBAL
+  VENDOR
+}
+
+enum FeatureFlagKey {
+  // IMPORTANT: OFF by default. We keep it for future, but manual-only now.
+  VENDOR_AUTO_PRICE_FETCH
+}
+
+model Algorithm {
+  id             String   @id @default(cuid())
+  key            String   @unique // e.g. "sha256"
+  name           String // "SHA-256"
+  unit           String // "TH/s" / "GH/s"
+  efficiencyUnit String // "J/TH" etc.
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  coins    Coin[]
+  machines Machine[]
+}
+
+model Coin {
+  id           String   @id @default(cuid())
+  key          String   @unique // "btc"
+  symbol       String // "BTC"
+  name         String // "Bitcoin"
+  algorithmId  String
+  blockTimeSec Int? // optional if source provides
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  algorithm Algorithm     @relation(fields: [algorithmId], references: [id])
+  miners    MachineCoin[]
+
+  // Inverse for ProfitabilitySnapshot.bestCoin
+  bestForSnapshots ProfitabilitySnapshot[] @relation("BestCoinSnapshots")
+
+  @@index([algorithmId])
+}
+
+model Machine {
+  id             String        @id @default(cuid())
+  slug           String        @unique // for SEO URL
+  name           String
+  manufacturer   String?
+  algorithmId    String
+  // store as decimal strings to avoid float rounding in JS
+  hashrate       String // "100"
+  hashrateUnit   String // "TH/s"
+  powerW         Int // watts
+  efficiency     String? // "32"
+  efficiencyUnit String? // "J/TH"
+  releaseDate    DateTime?
+  status         MachineStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  algorithm Algorithm @relation(fields: [algorithmId], references: [id])
+
+  // Many-to-many coins the machine can mine (usually same algorithm; enforced in app logic)
+  canMineCoins MachineCoin[]
+
+  vendorOfferings        VendorOffering[]
+  profitabilitySnapshots ProfitabilitySnapshot[]
+
+  // Inverse for WatchlistItem.machine
+  watchlistedBy WatchlistItem[]
+
+  @@index([algorithmId])
+  @@index([status])
+}
+
+model MachineCoin {
+  id        String   @id @default(cuid())
+  machineId String
+  coinId    String
+  createdAt DateTime @default(now())
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  coin    Coin    @relation(fields: [coinId], references: [id], onDelete: Cascade)
+
+  @@unique([machineId, coinId])
+  @@index([coinId])
+}
+
+model Vendor {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  name       String
+  websiteUrl String?
+  trustLevel TrustLevel @default(UNKNOWN)
+  isVerified Boolean    @default(false)
+  notes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offerings    VendorOffering[]
+  featureFlags FeatureFlag[]
+
+  @@index([isVerified])
+  @@index([trustLevel])
+}
+
+model VendorOffering {
+  id        String @id @default(cuid())
+  vendorId  String
+  machineId String
+
+  // Manual-only pricing (admin enters)
+  currency  String // ISO: "USD", "EUR", "NGN" etc.
+  regionKey String @default("GLOBAL") // optional region segmentation
+  price     String // decimal as string, e.g. "2999.00"
+
+  productUrl String?
+  inStock    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, machineId, currency, regionKey], name: "vendorId_machineId_currency_regionKey")
+  @@index([machineId])
+  @@index([vendorId])
+  @@index([currency])
+}
+
+model ProfitabilitySnapshot {
+  id         String   @id @default(cuid())
+  machineId  String
+  computedAt DateTime @default(now())
+
+  // Baseline electricity used for this snapshot (USD/kWh).
+  // We will compute display for user-entered electricity separately on-the-fly.
+  electricityUsdPerKwh String
+
+  bestCoinId           String?
+  revenueUsdPerDay     String
+  electricityUsdPerDay String
+  profitUsdPerDay      String
+
+  // lowestPriceUsd is derived at snapshot time using FxRateSnapshot + manual VendorOffering minimum.
+  // ROI is only computed if lowestPriceUsd is present.
+  lowestPriceUsd String?
+  roiDays        Int?
+
+  createdAt DateTime @default(now())
+
+  machine  Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  bestCoin Coin?   @relation("BestCoinSnapshots", fields: [bestCoinId], references: [id])
+
+  @@index([machineId, computedAt])
+  @@index([computedAt])
+}
+
+model FxRateSnapshot {
+  id           String   @id @default(cuid())
+  baseCurrency String   @default("USD")
+  // JSON map e.g. {"EUR":"0.92","NGN":"1550.00"} as strings
+  rates        Json
+  fetchedAt    DateTime @default(now())
+
+  @@index([fetchedAt])
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeatureFlag {
+  id      String           @id @default(cuid())
+  scope   FeatureFlagScope
+  key     FeatureFlagKey
+  enabled Boolean          @default(false)
+
+  // Use a sentinel value "__GLOBAL__" for global flags.
+  // This avoids NULL in compound unique constraints (Prisma upsert where cannot use null reliably).
+  vendorId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor Vendor? @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([scope, key, vendorId], name: "scope_key_vendorId")
+  @@index([key])
+  @@index([vendorId])
+}
+
+/**
+ * NextAuth Prisma Adapter models
+ * plus RBAC role mapping (admin/editor/viewer)
+ */
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  roles     UserRole[]
+  watchlist WatchlistItem[]
+
+  // Inverse for AuditLog.actor
+  auditLogs AuditLog[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  key         String  @unique // "admin" | "editor" | "viewer"
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model WatchlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  machineId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, machineId])
+  @@index([machineId])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorUserId String?
+  action      AuditAction
+  entity      String // e.g. "Machine", "VendorOffering"
+  entityId    String
+  before      Json?
+  after       Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* =========================
+   DEFAULT = DARK (GRAY)
+   ========================= */
+:root {
+  color-scheme: dark;
+
+  --bg: 15 23 42;        /* slate-900 */
+  --fg: 248 250 252;     /* slate-50 */
+  --muted: 148 163 184;  /* slate-400 */
+
+  --card: 30 41 59;      /* slate-800 */
+  --border: 51 65 85;    /* slate-700 */
+  --ring: 245 200 66;    /* yellow focus */
+
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+
+  /* accents */
+  --accent-yellow: 245 200 66;
+  --accent-red: 220 38 38;
+}
+
+/* =========================
+   LIGHT MODE (OPTIONAL)
+   ========================= */
+.light {
+  color-scheme: light;
+
+  --bg: 255 255 255;
+  --fg: 15 23 42;        /* slate-900 */
+  --muted: 71 85 105;    /* slate-600 */
+
+  --card: 248 250 252;   /* slate-50 */
+  --border: 226 232 240; /* slate-200 */
+  --ring: 184 134 11;    /* dark yellow */
+
+  --shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+
+  --accent-yellow: 184 134 11;
+  --accent-red: 127 29 29;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--fg));
+}
+
+/* Focus */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--ring) / 0.35);
+  border-radius: 10px;
+}
