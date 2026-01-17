@@ -1,11 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/profitability",
-      "schedule": "0 0 * * *",
-      "headers": {
-        "x-cron-secret": "@cron_secret"
-      }
+      "path": "/api/cron/profitability?secret=@cron_secret",
+      "schedule": "0 0 * * *"
     }
   ]
 }
