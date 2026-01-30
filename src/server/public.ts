@@ -13,8 +13,8 @@ export async function getLatestFxRates(): Promise<FxRates | null> {
 
   const out: FxRates = {};
   for (const [k, v] of Object.entries(ratesJson)) {
-    const n = Number(v);
-    if (Number.isFinite(n) && n > 0) out[String(k).toUpperCase()] = n;
+    const n = toNumber(v);
+    if (n != null && n > 0) out[String(k).toUpperCase()] = n;
   }
   out["USD"] = 1;
   return out;
@@ -32,12 +32,66 @@ export function formatMoney(amount: number, currency: string) {
   }
 }
 
+/**
+ * ✅ Enterprise-safe numeric parsing for Prisma Decimal + strings + numbers.
+ * - Handles Prisma.Decimal (Decimal.js-like): .toNumber() / .toString()
+ * - Handles strings with commas ("1,234.56")
+ * - Returns null for invalid values
+ */
 export function toNumber(v: unknown): number | null {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  if (v == null) return null;
+
+  // Fast path: number
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  // Bigint path
+  if (typeof v === "bigint") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // String path
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+
+    // remove commas (e.g. "1,234.56")
+    const cleaned = s.replace(/,/g, "");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Object path: Prisma Decimal / Decimal.js-like
+  if (typeof v === "object") {
+    const anyV = v as any;
+
+    // Decimal.js and Prisma.Decimal often expose toNumber()
+    if (typeof anyV.toNumber === "function") {
+      const n = anyV.toNumber();
+      return typeof n === "number" && Number.isFinite(n) ? n : null;
+    }
+
+    // Fall back to string conversion
+    if (typeof anyV.toString === "function") {
+      const s = String(anyV.toString()).trim();
+      if (!s) return null;
+      const cleaned = s.replace(/,/g, "");
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    return null;
+  }
+
+  // boolean/symbol/function etc
+  return null;
 }
 
-export function convertToUsd(amount: number, currency: string, rates: FxRates | null): number | null {
+export function convertToUsd(
+  amount: number,
+  currency: string,
+  rates: FxRates | null
+): number | null {
   const c = currency.toUpperCase();
   if (c === "USD") return amount;
   if (!rates) return null;
@@ -46,7 +100,11 @@ export function convertToUsd(amount: number, currency: string, rates: FxRates | 
   return amount / r;
 }
 
-export function convertUsdToCurrency(usd: number, currency: string, rates: FxRates | null): number | null {
+export function convertUsdToCurrency(
+  usd: number,
+  currency: string,
+  rates: FxRates | null
+): number | null {
   const c = currency.toUpperCase();
   if (c === "USD") return usd;
   if (!rates) return null;
@@ -55,6 +113,13 @@ export function convertUsdToCurrency(usd: number, currency: string, rates: FxRat
   return usd * r;
 }
 
+/**
+ * ⚠️ NOTE:
+ * This helper is still valid, but now that your snapshot stores net profit already
+ * (profitUsdPerDay = NET after costs), you should prefer:
+ * - computeUserProfitFromSnapshotUsingBreakdown() (if you have breakdown)
+ * - or only use this for "electricity-only what-if" deltas.
+ */
 export function computeUserProfitFromSnapshot(args: {
   revenueUsdPerDay: number;
   baselineElectricityUsdPerDay: number;
@@ -69,7 +134,9 @@ export function computeUserProfitFromSnapshot(args: {
   } = args;
 
   const ratio =
-    baselineElectricityUsdPerKwh > 0 ? userElectricityUsdPerKwh / baselineElectricityUsdPerKwh : 1;
+    baselineElectricityUsdPerKwh > 0
+      ? userElectricityUsdPerKwh / baselineElectricityUsdPerKwh
+      : 1;
 
   const userElectricityUsdPerDay = baselineElectricityUsdPerDay * ratio;
   const userProfitUsdPerDay = revenueUsdPerDay - userElectricityUsdPerDay;
@@ -109,8 +176,8 @@ export async function getNiceHashPayingSettings(): Promise<NiceHashPayingSetting
 
   const paying: Record<string, number> = {};
   for (const [k, val] of Object.entries(payingRaw)) {
-    const n = Number(val);
-    if (Number.isFinite(n) && n > 0) paying[String(k).toUpperCase()] = n;
+    const n = toNumber(val);
+    if (n != null && n > 0) paying[String(k).toUpperCase()] = n;
   }
 
   return { fetchedAt, source, paying };

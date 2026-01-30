@@ -17,11 +17,32 @@ function num(v: string | null, fallback: number) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Prisma Decimal-safe reader:
+ * - Prisma Decimal has .toString()
+ * - Some helpers already accept string/number, but keep this explicit and safe.
+ */
+function decToNumber(v: any): number | null {
+  if (v == null) return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof v?.toString === "function") {
+    const n = Number(v.toString());
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
 
   const currencyRequested = String(url.searchParams.get("currency") ?? "USD").toUpperCase();
   const regionKey = String(url.searchParams.get("region") ?? "GLOBAL").toUpperCase();
+
+  // user "what-if" electricity (USD/kWh)
   const electricityUsdPerKwh = num(url.searchParams.get("electricity"), 0.10);
 
   const limit = Math.min(Math.max(num(url.searchParams.get("limit"), 200), 1), 500);
@@ -41,7 +62,11 @@ export async function GET(req: Request) {
       algorithm: true,
       vendorOfferings: {
         where: { inStock: true, regionKey },
-        select: { price: true, currency: true },
+        select: {
+          price: true,
+          currency: true,
+          shippingCost: true,
+        },
       },
       profitabilitySnapshots: {
         orderBy: { computedAt: "desc" },
@@ -53,31 +78,75 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
+  const toCurr = (usd: number | null) => {
+    if (usd == null) return null;
+    if (currencyUsed === "USD") return usd;
+    return convertUsdToCurrency(usd, currencyUsed, fxRates) ?? usd;
+  };
+
   const items = machines.map((m) => {
     const snap = m.profitabilitySnapshots[0] ?? null;
 
-    // Snapshot revenue
-    const revenueUsd = snap ? toNumber(snap.revenueUsdPerDay) : null;
+    // ✅ Snapshot numbers (now Decimal in Prisma)
+    const snapRevenueUsd = snap ? decToNumber(snap.revenueUsdPerDay) : null;
+    const snapElecUsdDay = snap ? decToNumber(snap.electricityUsdPerDay) : null;
+    const snapNetProfitUsd = snap ? decToNumber(snap.profitUsdPerDay) : null;
 
-    // Electricity derived from powerW (your requirement)
-    const electricityUsdDay = computeElectricityUsdPerDay(m.powerW, electricityUsdPerKwh);
+    // Snapshot baseline electricity price (USD/kWh) used during compute
+    const snapBaselineElecUsdPerKwh = snap ? decToNumber(snap.electricityUsdPerKwh) : null;
+
+    /**
+     * ✅ Enterprise “what-if electricity” consistent with decision engine:
+     * - Snapshot profit is NET profit with snapshot's baseline electricity.
+     * - If user supplies a different electricity rate, adjust profit by the delta cost:
+     *     deltaUsdPerDay = (newElec - snapElecRate) * kWhPerDay
+     *     newProfit = snapNetProfit - deltaUsdPerDay
+     *
+     * This preserves pool fee + hosting + everything else in the snapshot.
+     */
+    const kwhPerDay = (m.powerW / 1000) * 24;
+    const deltaElecUsdDay =
+      snapBaselineElecUsdPerKwh != null
+        ? (electricityUsdPerKwh - snapBaselineElecUsdPerKwh) * kwhPerDay
+        : null;
 
     const profitUsd =
-      revenueUsd == null ? null : revenueUsd - electricityUsdDay;
+      snapNetProfitUsd == null
+        ? null
+        : deltaElecUsdDay == null
+        ? snapNetProfitUsd
+        : snapNetProfitUsd - deltaElecUsdDay;
 
-    // Lowest offering in current region
+    // Also expose electricity/day derived from user's electricity (for UI clarity)
+    const electricityUsdDayUser = computeElectricityUsdPerDay(m.powerW, electricityUsdPerKwh);
+
+    // Lowest offering in current region (now Decimal)
     let lowestOfferUsd: number | null = null;
+    let lowestShipUsd: number | null = null;
+
     for (const off of m.vendorOfferings) {
-      const raw = toNumber(off.price);
+      const raw = decToNumber(off.price);
       if (raw == null) continue;
 
       const usd = convertToUsd(raw, off.currency, fxRates);
       if (usd == null) continue;
 
-      if (lowestOfferUsd == null || usd < lowestOfferUsd) lowestOfferUsd = usd;
+      if (lowestOfferUsd == null || usd < lowestOfferUsd) {
+        lowestOfferUsd = usd;
+
+        const shipRaw = decToNumber(off.shippingCost);
+        if (shipRaw != null) {
+          const shipUsd = convertToUsd(shipRaw, off.currency, fxRates);
+          lowestShipUsd = shipUsd ?? null;
+        } else {
+          lowestShipUsd = null;
+        }
+      }
     }
 
-    const snapLowestUsd = snap ? toNumber(snap.lowestPriceUsd) : null;
+    const snapLowestUsd = snap ? decToNumber(snap.lowestPriceUsd) : null;
+
+    // Use snapshot price if present, otherwise marketplace lowest offer
     const priceUsdForRoi = snapLowestUsd ?? lowestOfferUsd;
 
     const roiDays =
@@ -87,12 +156,6 @@ export async function GET(req: Request) {
 
     const algoKey = normalizeNiceHashAlgoKey(m.algorithm.key);
     const nicehashPaying = nicehash?.paying?.[algoKey] ?? null;
-
-    const toCurr = (usd: number | null) => {
-      if (usd == null) return null;
-      if (currencyUsed === "USD") return usd;
-      return convertUsdToCurrency(usd, currencyUsed, fxRates) ?? usd;
-    };
 
     return {
       id: m.id,
@@ -115,19 +178,38 @@ export async function GET(req: Request) {
       snapshot: snap
         ? {
             computedAt: snap.computedAt,
-            bestCoin: snap.bestCoin ? { symbol: snap.bestCoin.symbol, name: snap.bestCoin.name } : null,
-            revenueUsdPerDay: revenueUsd,
-            // we derive electricity/profit for the user; snapshot electricity is baseline-only
+            bestCoin: snap.bestCoin
+              ? { symbol: snap.bestCoin.symbol, name: snap.bestCoin.name }
+              : null,
+
+            // ✅ Now returned straight from snapshot (decision engine truth)
+            revenueUsdPerDay: snapRevenueUsd,
+            electricityUsdPerDay: snapElecUsdDay,
+            netProfitUsdPerDay: snapNetProfitUsd,
+
+            // baseline electricity used during compute
+            baselineElectricityUsdPerKwh: snapBaselineElecUsdPerKwh,
+
             lowestPriceUsd: snapLowestUsd,
           }
         : null,
 
       derived: {
+        // user's what-if input
         electricityUsdPerKwh,
-        electricityUsdPerDay: electricityUsdDay,
-        revenuePerDay: toCurr(revenueUsd),
+
+        // derived electricity/day at user's rate (display only)
+        electricityUsdPerDay: electricityUsdDayUser,
+
+        // ✅ Profit is snapshot net profit adjusted for electricity delta (enterprise-consistent)
+        revenuePerDay: toCurr(snapRevenueUsd),
         profitPerDay: toCurr(profitUsd),
+
+        // marketplace
         lowestOfferPrice: toCurr(lowestOfferUsd),
+        lowestOfferShipping: toCurr(lowestShipUsd),
+
+        // ROI uses net profit (consistent with decision engine)
         roiDays,
       },
 

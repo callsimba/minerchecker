@@ -1,3 +1,4 @@
+// prisma/seed.ts
 import "dotenv/config";
 import {
   PrismaClient,
@@ -11,15 +12,16 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 
+// ✅ Import the single source of truth (relative path from prisma/)
+import { ALGORITHM_CATALOG } from "../src/server/profitability/algorithmCatalog";
+
 // Prisma v7 (adapter mode): PrismaClient must be constructed with an adapter.
 function makePrismaClient() {
   const direct = process.env.DIRECT_URL;
   if (!direct) throw new Error("DIRECT_URL is not set in .env");
 
-  // Neon serverless driver in Node needs a WebSocket constructor
   neonConfig.webSocketConstructor = ws as unknown as typeof WebSocket;
 
-  // Adapter config (avoids Pool typing mismatch)
   const adapter = new PrismaNeon({
     connectionString: direct,
   });
@@ -50,7 +52,6 @@ async function main() {
   });
 
   // ✅ Create a SYSTEM vendor row to anchor GLOBAL feature flags (required FK)
-  // This prevents FK violations when vendorId is required.
   const globalVendor = await prisma.vendor.upsert({
     where: { slug: "__global__" },
     update: {},
@@ -101,21 +102,40 @@ async function main() {
     create: { key: "viewer", description: "Read-only access" },
   });
 
-  // Core reference data
-  const sha256 = await prisma.algorithm.upsert({
-    where: { key: "sha256" },
-    update: {},
-    create: {
-      key: "sha256",
-      name: "SHA-256",
-      unit: "TH/s",
-      efficiencyUnit: "J/TH",
-    },
-  });
+  // ✅ Algorithms catalog (single source of truth)
+  const algos = new Map<string, { id: string; key: string; name: string }>();
+
+  for (const a of ALGORITHM_CATALOG) {
+    const row = await prisma.algorithm.upsert({
+      where: { key: a.key },
+      update: {
+        name: a.name,
+        unit: a.unit,
+        efficiencyUnit: a.efficiencyUnit,
+      },
+      create: {
+        key: a.key,
+        name: a.name,
+        unit: a.unit,
+        efficiencyUnit: a.efficiencyUnit,
+      },
+    });
+
+    algos.set(row.key, row);
+  }
+
+  // Use seeded SHA-256 for BTC
+  const sha256 = algos.get("sha256");
+  if (!sha256) throw new Error("sha256 algorithm not seeded (unexpected).");
 
   const btc = await prisma.coin.upsert({
     where: { key: "btc" },
-    update: {},
+    update: {
+      symbol: "BTC",
+      name: "Bitcoin",
+      algorithmId: sha256.id,
+      blockTimeSec: 600,
+    },
     create: {
       key: "btc",
       symbol: "BTC",

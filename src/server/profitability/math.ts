@@ -1,3 +1,5 @@
+// src/server/profitability/math.ts
+
 export type SpeedBaseUnit = "H/s" | "Sol/s";
 
 const PREFIX: Record<string, number> = {
@@ -16,7 +18,10 @@ export function computeElectricityUsdPerDay(powerW: number, electricityUsdPerKwh
   return (powerW / 1000) * 24 * electricityUsdPerKwh;
 }
 
-export function parseSpeedToBase(hashrateStr: string, unitStr: string): { value: number; baseUnit: SpeedBaseUnit } | null {
+export function parseSpeedToBase(
+  hashrateStr: string,
+  unitStr: string
+): { value: number; baseUnit: SpeedBaseUnit } | null {
   const n = Number(hashrateStr);
   if (!Number.isFinite(n) || n <= 0) return null;
 
@@ -24,25 +29,19 @@ export function parseSpeedToBase(hashrateStr: string, unitStr: string): { value:
   if (!u0) return null;
 
   const u = u0.toUpperCase().replace(/\s+/g, "");
+  const noPerSec = u.replace("/S", "").replace("/SEC", "").replace("/SECOND", "");
 
-  // Normalize common forms: "TH/S", "T H/s", "MSOL/S"
-  const noPerSec = u.replace("/S", "");
-
-  // Detect Sol/s
   const isSol = noPerSec.includes("SOL");
   const baseUnit: SpeedBaseUnit = isSol ? "Sol/s" : "H/s";
 
-  // Remove base token (SOL or H)
   let mag = noPerSec;
   if (isSol) {
-    mag = mag.replace("SOL", ""); // "K" from "KSOL"
+    mag = mag.replace("SOL", "");
   } else {
-    // Handle "H", sometimes "HS" shows up in messy data, normalize both
     mag = mag.replace("HS", "H");
     mag = mag.replace("H", "");
   }
 
-  // mag now should be prefix like "", K, M, G, T...
   const prefix = mag;
   const factor = PREFIX[prefix] ?? null;
   if (factor == null) return null;
@@ -51,21 +50,38 @@ export function parseSpeedToBase(hashrateStr: string, unitStr: string): { value:
 }
 
 /**
- * NiceHash paying is documented as sat/(H|Sol|G)/day.
- * If our base speed is H/s or Sol/s, satPerUnitPerDay * speedBase => sat/day
+ * NiceHash "paying" is typically interpreted as satoshi per unit of hashrate per day
+ * on their "simplemultialgo/info" endpoint.
+ *
+ * If your project standard is PER-SECOND, pass payingSatPerUnitPerSec.
+ * If you accidentally pass PER-DAY, we still support it via payingSatPerUnitPerDay.
  */
 export function computeRevenueUsdPerDayFromNiceHash(args: {
-  payingSatPerUnitPerDay: number;
+  payingSatPerUnitPerSec?: number;
+  payingSatPerUnitPerDay?: number;
   speedBasePerSec: number;
   btcUsd: number;
 }) {
-  const { payingSatPerUnitPerDay, speedBasePerSec, btcUsd } = args;
+  const speed = args.speedBasePerSec;
+  const btcUsd = args.btcUsd;
 
-  if (!Number.isFinite(payingSatPerUnitPerDay) || payingSatPerUnitPerDay <= 0) return 0;
-  if (!Number.isFinite(speedBasePerSec) || speedBasePerSec <= 0) return 0;
+  if (!Number.isFinite(speed) || speed <= 0) return 0;
   if (!Number.isFinite(btcUsd) || btcUsd <= 0) return 0;
 
-  const satPerDay = payingSatPerUnitPerDay * speedBasePerSec;
+  let payingPerDay: number | null = null;
+
+  if (Number.isFinite(args.payingSatPerUnitPerDay as number) && (args.payingSatPerUnitPerDay as number) > 0) {
+    payingPerDay = Number(args.payingSatPerUnitPerDay);
+  } else if (
+    Number.isFinite(args.payingSatPerUnitPerSec as number) &&
+    (args.payingSatPerUnitPerSec as number) > 0
+  ) {
+    payingPerDay = Number(args.payingSatPerUnitPerSec) * 86400;
+  }
+
+  if (payingPerDay == null) return 0;
+
+  const satPerDay = payingPerDay * speed;
   const btcPerDay = satPerDay / 1e8;
   return btcPerDay * btcUsd;
 }

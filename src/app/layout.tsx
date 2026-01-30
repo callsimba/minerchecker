@@ -17,7 +17,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-dvh">
         <SiteHeader />
-        <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+
+        {/* One shared centered width constraint for the entire app */}
+        <main className="contentWrapper py-8">{children}</main>
+
         <SiteFooter />
       </body>
     </html>

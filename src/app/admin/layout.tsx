@@ -8,6 +8,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin" className="font-semibold tracking-tight">
             MinerChecker Admin
           </Link>
+
           <nav className="flex items-center gap-4 text-sm text-white/80">
             <Link className="hover:text-white" href="/admin/machines">
               Machines
@@ -18,6 +19,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link className="hover:text-white" href="/admin/offerings">
               Offerings
             </Link>
+            <Link className="hover:text-white" href="/admin/events">
+              Events
+            </Link>
+            <Link className="hover:text-white" href="/admin/support">
+              Support
+            </Link>
+
           </nav>
         </div>
       </header>

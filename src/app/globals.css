@@ -61,3 +61,27 @@ body {
   box-shadow: 0 0 0 3px rgb(var(--ring) / 0.35);
   border-radius: 10px;
 }
+
+.contentWrapper {
+  width: 100%;
+  max-width: 1400px; /* <-- was 1200px */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 768px) {
+  .contentWrapper {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (min-width: 1536px) {
+  .contentWrapper {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+

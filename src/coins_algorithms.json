@@ -1,0 +1,38 @@
+{
+  "items": [
+    { "coin": "aleo", "algorithm": "Proof-of-Succinct Work (PoSW) Coinbase puzzle" },
+    { "coin": "alph", "algorithm": "Blake3" },
+    { "coin": "bcn", "algorithm": "CryptoNight" },
+    { "coin": "btc", "algorithm": "SHA-256" },
+    { "coin": "btm", "algorithm": "Tensority" },
+    { "coin": "ckb", "algorithm": "Eaglesong" },
+    { "coin": "dash", "algorithm": "X11" },
+    { "coin": "dcr", "algorithm": "BLAKE3 (PoW hash)" },
+    { "coin": "doge", "algorithm": "Scrypt" },
+      { "coin": "ltc", "algorithm": "Scrypt" },
+    { "coin": "etc", "algorithm": "Etchash" },
+    { "coin": "grin", "algorithm": "Cuckatoo32" },
+    { "coin": "grs", "algorithm": "Groestl" },
+    { "coin": "hns", "algorithm": "Blake2B + SHA3" },
+    { "coin": "ini", "algorithm": "VersaHash" },
+    { "coin": "kas", "algorithm": "kHeavyHash" },
+    { "coin": "kda", "algorithm": "Blake2s" },
+    { "coin": "lbc", "algorithm": "LBRY" },
+    { "coin": "mona", "algorithm": "Lyra2REv2" },
+    { "coin": "nexa", "algorithm": "NexaPow" },
+    { "coin": "rxd", "algorithm": "SHA512/256d" },
+    { "coin": "sc", "algorithm": "Blake2b-Sia" },
+    { "coin": "scc", "algorithm": "FiroPoW" },
+    {
+      "coin": "scp",
+      "algorithm": "Blake2b-Sia (Sia / Blake256R14 variant)"
+    },
+    { "coin": "sumo", "algorithm": "CryptoNightR" },
+    { "coin": "xmr", "algorithm": "RandomX" },
+    { "coin": "xtm", "algorithm": "RandomX" },
+    { "coin": "zec", "algorithm": "Equihash" },
+    { "coin": "zen", "algorithm": "Equihash" }
+  ],
+  "missing_algorithm_for": [],
+  "note": "Algorithms are typical PoW/mining algorithm labels used by pools/calculators."
+}

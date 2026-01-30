@@ -6,7 +6,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 function clampElectricity(v: string) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "";
-  // keep sane bounds, but don’t hard-block typing
   const clamped = Math.min(Math.max(n, 0), 5);
   return String(clamped);
 }
@@ -15,6 +14,9 @@ export function MachineDetailControls() {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+
+  // IMPORTANT: use a stable string snapshot, NOT the sp object in deps
+  const spString = sp.toString();
 
   const initial = useMemo(() => {
     const currency = (sp.get("currency") ?? "USD").toUpperCase();
@@ -28,9 +30,25 @@ export function MachineDetailControls() {
   const [region, setRegion] = useState(initial.region);
   const [electricity, setElectricity] = useState(initial.electricity);
 
+  // Keep UI in sync if user changes URL externally (back/forward or links)
+  useEffect(() => {
+    const c = (sp.get("currency") ?? "USD").toUpperCase();
+    const r = (sp.get("region") ?? "GLOBAL").toUpperCase();
+    const e = sp.get("electricity") ?? "0.10";
+
+    // only update if actually different (prevents cursor-jank while typing)
+    setCurrency((prev) => (prev === c ? prev : c));
+    setRegion((prev) => (prev === r ? prev : r));
+    setElectricity((prev) => (prev === e ? prev : e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spString]);
+
   // Avoid running replace() on first mount
   const didMount = useRef(false);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Prevent replace loops by remembering the last URL we set
+  const lastAppliedUrl = useRef<string | null>(null);
 
   useEffect(() => {
     if (!didMount.current) {
@@ -41,7 +59,7 @@ export function MachineDetailControls() {
     if (t.current) clearTimeout(t.current);
 
     t.current = setTimeout(() => {
-      const next = new URLSearchParams(sp.toString());
+      const next = new URLSearchParams(spString);
 
       const c = currency.trim().toUpperCase();
       const r = region.trim().toUpperCase();
@@ -58,14 +76,22 @@ export function MachineDetailControls() {
       else next.delete("electricity");
 
       const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    }, 250);
+      const targetUrl = qs ? `${pathname}?${qs}` : pathname;
+
+      // ✅ If the URL is already the same, do nothing (stops constant updates)
+      const currentUrl = spString ? `${pathname}?${spString}` : pathname;
+
+      if (targetUrl === currentUrl) return;
+      if (lastAppliedUrl.current === targetUrl) return;
+
+      lastAppliedUrl.current = targetUrl;
+      router.replace(targetUrl, { scroll: false });
+    }, 300);
 
     return () => {
       if (t.current) clearTimeout(t.current);
     };
-    // NOTE: include `sp` so we preserve other query params if they change elsewhere
-  }, [currency, region, electricity, pathname, router, sp]);
+  }, [currency, region, electricity, pathname, router, spString]);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow)]">
@@ -112,9 +138,8 @@ export function MachineDetailControls() {
       </div>
 
       <p className="mt-3 text-xs text-muted">
-        Auto-updates URL params (no Apply button). Electricity is a rate in{" "}
-        <span className="font-mono">USD/kWh</span> and cost/day is derived from machine{" "}
-        <span className="font-mono">powerW</span>.
+        Updates URL params with a debounce. Electricity is a rate in{" "}
+        <span className="font-mono">USD/kWh</span>.
       </p>
     </section>
   );
