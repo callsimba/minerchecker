@@ -299,7 +299,8 @@ export default async function AdminVendorDetailPage({ params }: PageProps) {
                         <input type="hidden" name="offeringId" value={o.id} />
                         <input
                           name="price"
-                          defaultValue={o.price}
+                          defaultValue={o.price?.toString?.() ?? String(o.price)}
+
                           className="w-28 rounded-lg bg-black/30 border border-white/10 px-2 py-1"
                         />
                         <label className="flex items-center gap-2 text-xs text-white/70">
