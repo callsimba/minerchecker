@@ -287,7 +287,7 @@ export default async function ManufacturerDetailPage({
         </section>
 
         {/* CONTROLS BAR */}
-        <div className="sticky top-4 z-40 mt-8 rounded-[24px] border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
+        <div className="relative mt-8 rounded-[24px] border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
           <form method="get" className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex-1 min-w-[200px]">
               <div className="relative group">

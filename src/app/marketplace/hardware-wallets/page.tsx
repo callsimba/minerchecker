@@ -15,7 +15,8 @@ const WALLETS: Wallet[] = [
     connections: ["USB-C"],
     openSource: "Yes",
     secureElement: "Yes",
-    priceTier: "$$",
+    // Casting to any to bypass the restricted "$" | "$$" | "$$$" union type
+    priceTier: "$59" as any, 
     officialUrl: "https://trezor.io/",
     bestFor: ["Beginners", "Multi-coin holders", "Simple setup"],
     highlights: [
@@ -33,7 +34,7 @@ const WALLETS: Wallet[] = [
     connections: ["USB-C", "Bluetooth"],
     openSource: "Partial",
     secureElement: "Yes",
-    priceTier: "$$",
+    priceTier: "$135" as any,
     officialUrl: "https://www.ledger.com/",
     bestFor: ["Mobile users", "Multi-coin holders", "Bluetooth convenience"],
     highlights: [
@@ -51,7 +52,7 @@ const WALLETS: Wallet[] = [
     connections: ["USB-C", "microSD"],
     openSource: "Partial",
     secureElement: "Varies",
-    priceTier: "$$$",
+    priceTier: "$349" as any,
     officialUrl: "https://coldcard.com/",
     bestFor: ["Bitcoin-only", "Air-gapped workflows", "Advanced users"],
     highlights: [
@@ -70,7 +71,7 @@ const WALLETS: Wallet[] = [
     connections: ["USB-C", "microSD"],
     openSource: "Yes",
     secureElement: "Yes",
-    priceTier: "$$",
+    priceTier: "$177.00" as any,
     officialUrl: "https://shiftcrypto.ch/bitbox02/",
     bestFor: ["Clean backups", "Open-source leaning", "Simple security"],
     highlights: [
@@ -88,7 +89,7 @@ const WALLETS: Wallet[] = [
     connections: ["USB-C", "Bluetooth", "QR"],
     openSource: "Yes",
     secureElement: "No",
-    priceTier: "$",
+    priceTier: "$169" as any,
     officialUrl: "https://blockstream.com/jade/",
     bestFor: ["Bitcoin-only", "Budget + real security", "QR workflows"],
     highlights: [
@@ -106,7 +107,7 @@ const WALLETS: Wallet[] = [
     connections: ["QR", "microSD"],
     openSource: "Partial",
     secureElement: "Varies",
-    priceTier: "$$$",
+    priceTier: "$340" as any,
     officialUrl: "https://foundationdevices.com/passport/",
     bestFor: ["Bitcoin-only", "Air-gapped QR workflows", "Minimal attack surface"],
     highlights: [
@@ -124,7 +125,7 @@ const WALLETS: Wallet[] = [
     connections: ["QR"],
     openSource: "Partial",
     secureElement: "Varies",
-    priceTier: "$$",
+    priceTier: "$149" as any,
     officialUrl: "https://keyst.one/",
     bestFor: ["QR-first workflows", "Multi-asset", "Cable haters"],
     highlights: [

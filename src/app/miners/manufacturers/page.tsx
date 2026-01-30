@@ -290,7 +290,7 @@ export default async function Page({
         </section>
 
         {/* COMMAND CENTER */}
-        <div className="sticky top-4 z-40 mt-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md transition-all">
+        <div className="relative mt-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md transition-all">
           <form className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" method="get">
             
             <div className="flex-1 min-w-[240px]">

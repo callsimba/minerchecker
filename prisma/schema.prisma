@@ -415,6 +415,26 @@ model SupportReply {
   @@index([actorUserId])
 }
 
+model NewsletterSubscriber {
+  id     String           @id @default(cuid())
+  email  String           @unique
+  status NewsletterStatus @default(ACTIVE)
+
+  source    String?
+  ip        String?
+  userAgent String?
+
+  unsubToken String @unique @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum NewsletterStatus {
+  ACTIVE
+  UNSUBSCRIBED
+}
+
 enum MachineStatus {
   AVAILABLE
   COMING_SOON

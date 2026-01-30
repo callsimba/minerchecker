@@ -125,10 +125,8 @@ export default async function TrustedVendorsPage({
 
   // 4. Enrich Data
   const vendors = vendorsRaw.map(v => {
-    // Determine primary region based on offerings or country fallback
     const derivedRegion = v.country || (v.offerings[0]?.regionKey ?? "GLOBAL");
     
-    // Format offerings for preview
     const previewOffers = v.offerings.map(o => {
         const rawPrice = Number(o.price);
         return {
@@ -162,7 +160,6 @@ export default async function TrustedVendorsPage({
       
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden border-b border-white/5 bg-zinc-900/50 pt-10 pb-8 px-4 md:px-6 shadow-xl">
-         {/* Background Mesh */}
          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-emerald-500/10 via-zinc-900/0 to-zinc-950/0 pointer-events-none" />
          
          <div className="relative z-10 mx-auto max-w-[1400px]">
@@ -192,11 +189,10 @@ export default async function TrustedVendorsPage({
 
       <div className="mx-auto max-w-[1400px] px-4 md:px-6 mt-8">
 
-        {/* 2. COMMAND CENTER (FILTERS) */}
-        <div className="sticky top-4 z-40 mb-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
+        {/* 2. COMMAND CENTER (FILTERS) - PATCHED: Set to relative to scroll with content */}
+        <div className="relative mb-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
           <form className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             
-            {/* Search Input */}
             <div className="relative group flex-1 min-w-[200px]">
               <div className="absolute inset-y-0 left-3 flex items-center text-zinc-500 group-focus-within:text-emerald-400 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -210,7 +206,6 @@ export default async function TrustedVendorsPage({
             </div>
 
             <div className="flex flex-wrap gap-3 items-center">
-              {/* Region Select */}
               <div className="relative">
                 <select 
                   name="region" 
@@ -225,7 +220,6 @@ export default async function TrustedVendorsPage({
                 </div>
               </div>
 
-              {/* Verified Toggle */}
               <label className="flex items-center gap-3 cursor-pointer bg-black/20 px-4 h-12 rounded-xl border border-white/10 select-none hover:bg-white/5 transition-colors">
                 <span className="text-sm font-bold text-zinc-300">Verified Only</span>
                 <input 
@@ -294,7 +288,6 @@ export default async function TrustedVendorsPage({
           {vendors.map(v => (
             <div key={v.id} className="group flex flex-col bg-zinc-900/30 border border-white/5 rounded-3xl overflow-hidden hover:border-white/10 transition-all hover:bg-zinc-900/50">
               
-              {/* Card Header */}
               <div className="p-6 border-b border-white/5 flex items-start justify-between">
                 <div className="flex gap-4">
                   <div className="h-12 w-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
@@ -312,12 +305,11 @@ export default async function TrustedVendorsPage({
                   </div>
                 </div>
                 <div className="text-right">
-                   <div className="text-2xl font-bold text-white">{v.stockCount}</div>
-                   <div className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Offers</div>
+                    <div className="text-2xl font-bold text-white">{v.stockCount}</div>
+                    <div className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Offers</div>
                 </div>
               </div>
 
-              {/* Offerings Preview */}
               <div className="flex-1 p-6 bg-black/10">
                 <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Latest Inventory</div>
                 {v.previewOffers.length > 0 ? (
@@ -341,7 +333,6 @@ export default async function TrustedVendorsPage({
                 )}
               </div>
 
-              {/* Actions Footer */}
               <div className="p-4 border-t border-white/5 flex gap-3">
                 <Link 
                   href={`/marketplace/trusted-vendors/${v.slug}`} 

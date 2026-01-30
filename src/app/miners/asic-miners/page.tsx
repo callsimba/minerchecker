@@ -256,7 +256,6 @@ export default async function AsicMinersPage({
       name: m.name,
     });
 
-    // keep “settings” params (currency/region/electricity) but don’t carry list-only params into the machine page
     const machineQuery = buildQueryString(sp, {}, [
       "slug",
       "compare",
@@ -271,7 +270,6 @@ export default async function AsicMinersPage({
 
     const imageUrl = (m as any).imageUrl ?? null;
 
-    // --- Format values for Display strings ---
     const revenueDisplay =
       revenueUsd != null
         ? formatMoney(convertUsdToCurrency(revenueUsd, currency, fxRates) ?? revenueUsd, currency)
@@ -295,7 +293,6 @@ export default async function AsicMinersPage({
       efficiencyLabel,
       th,
       machineHref,
-      // Display strings
       profitDisplay:
         profitUsd != null
           ? formatMoney(convertUsdToCurrency(profitUsd, currency, fxRates) ?? profitUsd, currency)
@@ -311,7 +308,6 @@ export default async function AsicMinersPage({
       isProfitable: (profitUsd ?? -1) > 0,
       hasRevenueData: revenueUsd !== null,
       bestCoin: snap?.bestCoin?.name ?? null,
-      // For CompareTray logic (pre-calc)
       snapshotNetProfitUsdPerDay: profitUsd,
       snapshotBaselineElectricityUsdPerKwh: electricity,
       offerCount: m.vendorOfferings.length,
@@ -357,14 +353,13 @@ export default async function AsicMinersPage({
     return buildQueryString(sp, { compare: Array.from(current).join(",") || undefined });
   };
 
-  // ✅ Create a Sanitized version for the Client Component (No Decimals)
   const compareItems = enriched.map((m) => ({
     id: m.id,
     name: m.name,
     slug: m.slug,
     imageUrl: m.imageUrl,
     algorithmName: m.algorithmName,
-    hashrate: String(m.hashrate), // Safe String
+    hashrate: String(m.hashrate),
     hashrateUnit: m.hashrateUnit,
     powerW: m.powerW,
     revenueDisplay: m.revenueDisplay,
@@ -386,7 +381,6 @@ export default async function AsicMinersPage({
       
       {/* 1. Market Header (Glass Hero) */}
       <div className="relative overflow-hidden border-b border-white/5 bg-zinc-900/50 pt-10 pb-8 px-4 md:px-6 shadow-xl">
-         {/* Background Mesh */}
          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-zinc-900/0 to-zinc-950/0 pointer-events-none" />
          
          <div className="relative z-10 mx-auto max-w-[1400px]">
@@ -416,8 +410,8 @@ export default async function AsicMinersPage({
 
       <div className="mx-auto max-w-[1400px] px-4 md:px-6 mt-8">
         
-        {/* 2. Control Command Center */}
-        <div className="sticky top-4 z-40 mb-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
+        {/* 2. Control Command Center - PATCHED: Only sticky on Desktop */}
+        <div className="relative lg:sticky lg:top-4 z-40 mb-8 rounded-3xl border border-white/10 bg-zinc-900/90 p-4 shadow-2xl backdrop-blur-md">
           <form className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <input type="hidden" name="view" value={view} />
             {compareIds.length > 0 && <input type="hidden" name="compare" value={compareParam} />}
@@ -540,7 +534,6 @@ export default async function AsicMinersPage({
         {/* 4. Data Display */}
         {view === "list" ? (
           <div className="space-y-2">
-            {/* Desktop Header */}
             <div className="hidden lg:grid grid-cols-[50px_3fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
               <div>Cmp</div>
               <div>Model</div>
@@ -562,7 +555,6 @@ export default async function AsicMinersPage({
                   key={m.id}
                   className="group relative bg-zinc-900/40 border border-white/5 rounded-2xl p-4 hover:bg-zinc-900/80 hover:border-white/10 transition-all duration-300 hover:shadow-lg backdrop-blur-sm"
                 >
-                  {/* --- MOBILE LIST LAYOUT (< lg) --- */}
                   <div className="block lg:hidden">
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-3">
@@ -619,9 +611,7 @@ export default async function AsicMinersPage({
                     </div>
                   </div>
 
-                  {/* --- DESKTOP GRID LAYOUT (>= lg) --- */}
                   <div className="hidden lg:grid grid-cols-[50px_3fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-4 items-center">
-                    {/* Compare Checkbox */}
                     <div>
                       <Link
                         href={toggleCompareHref(m.id)}
@@ -636,7 +626,6 @@ export default async function AsicMinersPage({
                       </Link>
                     </div>
 
-                    {/* Identity */}
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-12 bg-white/5 rounded-xl p-1.5 border border-white/5 shrink-0 backdrop-blur-sm">
                         {m.imageUrl ? (
@@ -662,7 +651,6 @@ export default async function AsicMinersPage({
                       </div>
                     </div>
 
-                    {/* Stats */}
                     <div className="text-sm font-mono text-zinc-300">
                       <span className="text-white font-bold">{m.hashrate}</span>{" "}
                       <span className="text-xs text-zinc-500">{m.hashrateUnit}</span>
@@ -672,14 +660,12 @@ export default async function AsicMinersPage({
                     </div>
                     <div className="text-sm font-mono text-zinc-400">{m.efficiencyLabel}</div>
 
-                    {/* Algo */}
                     <div>
                         <span className="inline-flex items-center rounded bg-white/5 px-2 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border border-white/5">
                             {m.algorithm.name}
                         </span>
                     </div>
 
-                    {/* ROI */}
                     <div className="text-right text-sm font-mono">
                       {m.roiDays ? (
                         <span className="text-yellow-500 font-bold">{Math.ceil(m.roiDays)}d</span>
@@ -688,7 +674,6 @@ export default async function AsicMinersPage({
                       )}
                     </div>
 
-                    {/* Price */}
                     <div className="text-right">
                       {m.bestPriceUsd ? (
                         <div className="text-white font-bold text-sm">{m.priceDisplay}</div>
@@ -697,7 +682,6 @@ export default async function AsicMinersPage({
                       )}
                     </div>
 
-                    {/* Profit */}
                     <div className="text-right">
                       {m.hasRevenueData ? (
                         <>
@@ -716,7 +700,6 @@ export default async function AsicMinersPage({
             })}
           </div>
         ) : (
-          // GRID VIEW
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {enriched.map((m: any) => {
               const isSelected = compareSet.has(m.id);
@@ -729,7 +712,6 @@ export default async function AsicMinersPage({
                 >
                   <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                  {/* Top Bar */}
                   <div className="flex justify-between items-start mb-6 z-10 relative">
                     <span className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/10 text-[10px] font-bold text-zinc-400 uppercase tracking-wider backdrop-blur-md">
                       {m.algorithm.name}
@@ -747,7 +729,6 @@ export default async function AsicMinersPage({
                     </Link>
                   </div>
 
-                  {/* Image */}
                   <Link href={m.machineHref} className="flex-1 w-full flex items-center justify-center mb-8 relative z-10">
                     <div className="relative w-full aspect-[4/3] max-h-40">
                       {m.imageUrl ? (
@@ -764,7 +745,6 @@ export default async function AsicMinersPage({
                     </div>
                   </Link>
 
-                  {/* Info */}
                   <div className="relative z-10">
                     <Link
                       href={m.machineHref}
@@ -774,7 +754,6 @@ export default async function AsicMinersPage({
                     </Link>
                     <div className="text-xs text-zinc-500 mb-5">{m.manufacturerData.displayName}</div>
 
-                    {/* Matrix */}
                     <div className="grid grid-cols-2 gap-2 mb-5">
                       <div className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
                         <div className="text-zinc-500 mb-1 text-[10px] uppercase font-bold tracking-wider">Hashrate</div>
@@ -788,7 +767,6 @@ export default async function AsicMinersPage({
                       </div>
                     </div>
 
-                    {/* Footer */}
                     <div className="flex items-end justify-between border-t border-white/5 pt-4">
                       <div>
                         <div className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider mb-0.5">Best Price</div>
@@ -814,7 +792,6 @@ export default async function AsicMinersPage({
           </div>
         )}
 
-        {/* 5. Compare Tray */}
         <CompareTray items={compareItems} maxCompare={MAX_COMPARE} />
       </div>
     </div>
